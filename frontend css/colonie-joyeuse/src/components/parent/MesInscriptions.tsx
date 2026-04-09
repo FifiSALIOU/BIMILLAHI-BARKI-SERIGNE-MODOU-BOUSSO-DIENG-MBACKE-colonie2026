@@ -31,7 +31,11 @@ export default function MesInscriptions() {
     }
   };
 
-  const getValidationMessage = (enfant: typeof enfants[0]) => {
+  const getValidationMessage = (enfant: typeof enfants[0]): {
+    icon: React.ReactNode;
+    text: string;
+    color: string;
+  } | null => {
     const validation = enfant.validation || 'en_attente';
     if (enfant.desistement === 'demandé') {
       return { icon: <Clock className="w-4 h-4 text-amber-600" />, text: 'Votre demande de désistement est en cours de traitement par le gestionnaire.', color: 'bg-amber-50 border-amber-200 text-amber-800' };
@@ -45,7 +49,14 @@ export default function MesInscriptions() {
     if (validation === 'refusé') {
       return { icon: <XCircle className="w-4 h-4 text-destructive" />, text: `❌ Le gestionnaire a refusé cette demande. Motif : ${enfant.motifRefus || 'Non précisé'}.`, color: 'bg-destructive/5 border-destructive/20 text-destructive' };
     }
-    return { icon: <Clock className="w-4 h-4 text-muted-foreground" />, text: 'En attente de validation par le gestionnaire. Votre demande sera examinée prochainement.', color: 'bg-muted/50 border-border text-muted-foreground' };
+    /* Soumise sans refus : pas de bandeau « attente de validation ». Code retiré conservé en commentaire :
+    return {
+      icon: <Clock className="w-4 h-4 text-amber-600" />,
+      text: '⏳ En attente de validation par le gestionnaire.',
+      color: 'bg-amber-50 border-amber-200 text-amber-800',
+    };
+    */
+    return null;
   };
 
   return (
@@ -60,6 +71,8 @@ export default function MesInscriptions() {
         <div className="space-y-3">
           {enfants.map(enfant => {
             const msg = getValidationMessage(enfant);
+            /* Sans ce garde : le cas par défaut (ci-dessus en commentaire dans getValidationMessage) rendait toujours un bandeau. */
+            if (!msg) return null;
             return (
               <motion.div key={enfant.id} initial={{ opacity: 0, x: -10 }} animate={{ opacity: 1, x: 0 }} className={`flex items-start gap-3 p-3 rounded-lg border ${msg.color}`}>
                 {msg.icon}
@@ -111,7 +124,8 @@ export default function MesInscriptions() {
                     <TableCell>
                       {(e.validation || 'en_attente') === 'validé' && <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700">✅ Approuvé</span>}
                       {(e.validation || 'en_attente') === 'refusé' && <span className="text-xs font-semibold px-2 py-0.5 rounded-md bg-destructive/10 text-destructive">❌ Refusé</span>}
-                      {(e.validation || 'en_attente') === 'en_attente' && <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground">⏳ En attente</span>}
+                      {/* Ancien libellé (retiré) : {(e.validation || 'en_attente') === 'en_attente' && <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-muted text-muted-foreground">⏳ En attente</span>} */}
+                      {(e.validation || 'en_attente') === 'en_attente' && <span className="text-xs text-muted-foreground">—</span>}
                     </TableCell>
                     <TableCell>
                       {e.desistement === 'demandé' && <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-700">⏳ En attente</span>}

@@ -279,7 +279,10 @@ export default function ParentDashboard() {
   const getValidationBadge = (enfant: typeof enfants[0]) => {
     if (enfant.validation === 'validé') return <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-emerald-50 text-emerald-700 border border-emerald-200">✅ Informations validées</span>;
     if (enfant.validation === 'refusé') return <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-destructive/10 text-destructive border border-destructive/20">❌ Informations non validées — {enfant.motifRefus}</span>;
+    /* Soumise sans refus : plus de badge « attente de validation ». Ancien rendu conservé en commentaire :
     return <span className="text-xs font-medium px-2 py-0.5 rounded-md bg-amber-50 text-amber-700 border border-amber-200">⏳ Informations en attente de validation</span>;
+    */
+    return null;
   };
 
   // Card click -> open corresponding tab and highlight
@@ -501,8 +504,8 @@ export default function ParentDashboard() {
                     )}
                   </div>
 
-                  {/* Validation badge */}
-                  <div>{getValidationBadge(slot.enfant)}</div>
+                  {/* Validation badge (rien si soumise sans refus) */}
+                  {getValidationBadge(slot.enfant)}
 
                   {/* Désistement badges */}
                   {slot.enfant.desistement === 'demandé' && (

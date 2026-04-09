@@ -221,16 +221,22 @@ export default function GestionListe({ type }: Props) {
     setRefreshTick((t) => t + 1);
   };
 
-  const handleValider = async (enfant: Enfant) => {
-    await apiRequest(`/admin/demandes/${enfant.demandeId}/selection-finale`, {
-      method: 'POST',
-      token,
-      body: JSON.stringify({ is_selection_finale: true }),
-    });
-    addHistorique({ utilisateur: 'Gestionnaire', role: 'Admin', action: 'Approbation', details: `A approuvé les informations de ${enfant.prenom} ${enfant.nom}`, cible: `${enfant.prenom} ${enfant.nom}` });
-    toast({ title: '✅ Informations approuvées', description: `Les informations de ${enfant.prenom} ${enfant.nom} ont été validées.` });
-    setRefreshTick((t) => t + 1);
-  };
+  /*
+   * Ancien flux « Approuver » (validation explicite → API selection-finale is_selection_finale: true).
+   * Désactivé par commentaire : les infos sont considérées correctes tant que la demande n’est pas refusée ;
+   * seul « Refuser » reste proposé. L’API / le statut RETENUE existent toujours pour les données déjà traitées.
+   *
+   * const handleValider = async (enfant: Enfant) => {
+   *   await apiRequest(`/admin/demandes/${enfant.demandeId}/selection-finale`, {
+   *     method: 'POST',
+   *     token,
+   *     body: JSON.stringify({ is_selection_finale: true }),
+   *   });
+   *   addHistorique({ utilisateur: 'Gestionnaire', role: 'Admin', action: 'Approbation', details: `A approuvé les informations de ${enfant.prenom} ${enfant.nom}`, cible: `${enfant.prenom} ${enfant.nom}` });
+   *   toast({ title: '✅ Informations approuvées', description: `Les informations de ${enfant.prenom} ${enfant.nom} ont été validées.` });
+   *   setRefreshTick((t) => t + 1);
+   * };
+   */
 
   const handleRefuser = async () => {
     if (!refusTarget || !motifRefus.trim()) return;
@@ -381,12 +387,14 @@ export default function GestionListe({ type }: Props) {
                       </TableCell>
                       <TableCell>
                         <div className="flex gap-1 flex-wrap">
-                          {/* Approuver for en_attente only */}
+                          {/*
+                          Ancien bouton « Approuver » (voir handleValider commenté plus haut).
                           {validation === 'en_attente' && !e.desistement && (
                             <Button size="sm" onClick={() => handleValider(e)} className="gap-1 text-xs rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white h-7 px-2">
                               <CheckCircle2 className="w-3 h-3" />Approuver
                             </Button>
                           )}
+                          */}
                           {/* Refuser for en_attente only */}
                           {validation === 'en_attente' && !e.desistement && (
                             <Button size="sm" onClick={() => { setRefusTarget(e); setRefusOpen(true); }} className="gap-1 text-xs rounded-lg bg-destructive hover:bg-destructive/90 text-destructive-foreground h-7 px-2">

@@ -52,11 +52,43 @@ def ensure_listes_exist(db: Session) -> None:
 
 
 def _next_rang_for_liste(db: Session, liste_id: int) -> int:
+    """
+    Prochain rang pour une **nouvelle** demande active : immédiatement après les actifs (1..n),
+    en repoussant les lignes DESISTEE (même ordre relatif) comme après un désistement.
+    Évite que le nouvel inscrit prenne max(tous les rangs)+1 alors que des trous visibles
+    existent parmi les actifs à cause des désistés conservés sur la liste.
+    """
     db.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": int(liste_id)})
-    current_max = db.query(func.coalesce(func.max(DemandeInscription.rang_dans_liste), 0)).filter(
-        DemandeInscription.liste_id == liste_id
-    ).scalar()
-    return int(current_max) + 1
+    rows = (
+        db.query(DemandeInscription)
+        .filter(DemandeInscription.liste_id == liste_id)
+        .order_by(DemandeInscription.id.asc())
+        .all()
+    )
+    if not rows:
+        return 1
+
+    active = [d for d in rows if d.statut != DemandeStatut.DESISTEE]
+    desistees = [d for d in rows if d.statut == DemandeStatut.DESISTEE]
+    active_sorted = sorted(active, key=lambda d: (d.rang_dans_liste, d.id))
+    desist_sorted = sorted(desistees, key=lambda d: (d.rang_dans_liste, d.id))
+
+    temp = -1
+    for d in rows:
+        d.rang_dans_liste = temp
+        temp -= 1
+    db.flush()
+
+    r = 1
+    for d in active_sorted:
+        d.rang_dans_liste = r
+        r += 1
+    next_rang = r
+    for d in desist_sorted:
+        d.rang_dans_liste = r
+        r += 1
+    db.flush()
+    return int(next_rang)
 
 
 def resequence_rangs_pour_liste(db: Session, liste_id: int, *, demande_reinscrite_id: int) -> None:

@@ -170,3 +170,21 @@ class Desistement(Base):
         back_populates="desistement",
         foreign_keys=[demande_inscription_id],
     )
+
+
+class HistoriqueEntry(Base):
+    """Journal des rejets et désistements (écriture additive, sans modifier le métier)."""
+
+    __tablename__ = "historique"
+
+    id: Mapped[int] = mapped_column(BigInteger, primary_key=True, autoincrement=True)
+    event_type: Mapped[str] = mapped_column("type", String(32), nullable=False)
+    enfant_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("enfants.id"), nullable=False, index=True)
+    demande_id: Mapped[int | None] = mapped_column(BigInteger, ForeignKey("demandes.id", ondelete="SET NULL"), nullable=True, index=True)
+    motif: Mapped[str] = mapped_column(Text, nullable=False)
+    date_action: Mapped[datetime] = mapped_column(DateTime(timezone=True), nullable=False, index=True)
+    ajoute_par_id: Mapped[int | None] = mapped_column(
+        BigInteger, ForeignKey("users.id", ondelete="SET NULL"), nullable=True
+    )
+    # Pas de FK vers desistemements : la ligne source peut être supprimée après validation.
+    desistement_id: Mapped[int | None] = mapped_column(BigInteger, nullable=True)

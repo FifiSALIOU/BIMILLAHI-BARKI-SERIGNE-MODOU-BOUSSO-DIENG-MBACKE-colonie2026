@@ -21,7 +21,8 @@ from app.services.email_templates import (
     subject_selection,
     subject_transfer,
 )
-from app.services.inscriptions import ensure_listes_exist, resequence_rangs_apres_desistement_valide
+from app.services.historique_metier import append_historique_best_effort
+from app.services.inscriptions import ensure_listes_exist, resequence_rangs_apres_desistement_valide, _next_rang_for_liste
 from app.services.liste_finale_compute import demandes_liste_finale_retenus_si_cloturees
 from app.services.notify_helpers import collect_admin_emails
 from app.services.runtime_settings_store import merge_with_defaults, read_settings, write_settings
@@ -431,7 +432,24 @@ def set_selection_finale(
         demande.non_validation_reason = (payload.non_validation_reason or "").strip()[:191] or ""
     demande.updated_at = when
 
+    is_refus = not payload.is_selection_finale
+    enfant_id_h = int(demande.enfant_id)
+    demande_id_h = int(demande.id)
+    motif_h = (payload.non_validation_reason or "").strip() if is_refus else ""
+
     db.commit()
+
+    if is_refus:
+        append_historique_best_effort(
+            db,
+            event_type="REJET",
+            enfant_id=enfant_id_h,
+            demande_id=demande_id_h,
+            motif=motif_h,
+            ajoute_par_id=int(user.id),
+            desistement_id=None,
+            date_action=when,
+        )
 
     enfant = demande.enfant
     parent = enfant.parent
@@ -450,14 +468,6 @@ def set_selection_finale(
             ),
         )
     return {"ok": True}
-
-
-def _next_rang_for_liste(db: Session, liste_id: int) -> int:
-    db.execute(text("SELECT pg_advisory_xact_lock(:k)"), {"k": int(liste_id)})
-    current_max = db.query(func.coalesce(func.max(DemandeInscription.rang_dans_liste), 0)).filter(
-        DemandeInscription.liste_id == liste_id
-    ).scalar()
-    return int(current_max) + 1
 
 
 def _display_rank_by_order(db: Session, *, liste_id: int, demande_id: int) -> int | None:
@@ -824,6 +834,11 @@ def valider_desistement(
     enfant = demande.enfant
     parent = enfant.parent
 
+    desistement_pk = int(d.id)
+    enfant_id_h = int(enfant.id)
+    demande_id_h = int(demande.id)
+    motif_h = (d.raison or "").strip()
+
     demande.statut = DemandeStatut.DESISTEE
     demande.updated_at = datetime.now(timezone.utc)
     validated_at = datetime.now(timezone.utc)
@@ -831,6 +846,17 @@ def valider_desistement(
     db.flush()
     resequence_rangs_apres_desistement_valide(db, int(demande.liste_id))
     db.commit()
+
+    append_historique_best_effort(
+        db,
+        event_type="DESISTEMENT",
+        enfant_id=enfant_id_h,
+        demande_id=demande_id_h,
+        motif=motif_h,
+        ajoute_par_id=int(user.id),
+        desistement_id=desistement_pk,
+        date_action=validated_at,
+    )
 
     admin_emails = collect_admin_emails(db)
     enfant_label = f"{enfant.prenom} {enfant.nom}"

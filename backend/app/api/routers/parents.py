@@ -17,6 +17,7 @@ from app.schemas.inscriptions import (
     TitulaireUpdateIn,
     TransparenceInscriptionOut,
 )
+from app.services.historique_metier import append_historique_best_effort
 from app.services.inscriptions import (
     cancel_desistement,
     create_inscription_for_parent_user,
@@ -286,6 +287,19 @@ def demander_desistement(
 
     request_desistement(db=db, user=user, demande_id=demande_id, reason=payload.reason)
     db.commit()
+
+    r_eid = db.query(DemandeInscription.enfant_id).filter(DemandeInscription.id == demande_id).first()
+    if r_eid is not None:
+        append_historique_best_effort(
+            db,
+            event_type="DESISTEMENT",
+            enfant_id=int(r_eid[0]),
+            demande_id=int(demande_id),
+            motif=(payload.reason or "").strip(),
+            ajoute_par_id=int(user.id),
+            desistement_id=None,
+            date_action=datetime.now(timezone.utc),
+        )
 
     if parent and enfant_label:
         admin_emails = collect_admin_emails(db)
